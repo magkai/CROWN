@@ -8,9 +8,8 @@ CROWN is an unsupervised approach for conversational passage ranking. Answers ar
 
 To cite CROWN: 
     
-    Magdalena Kaiser, Rishiraj Saha Roy and Gerhard Weikum, 2019, "CROWN: Conversational Passage Ranking by Reasoning over Word Networks", In Proceedings of the 28th Text Retrieval Conference (TREC), Gaithersburg, USA, 15-17 November 2019.
+    Magdalena Kaiser, Rishiraj Saha Roy and Gerhard Weikum, 2019, "CROWN: Conversational Passage Ranking by Reasoning over Word Networks", In Proceedings of the 28th Text Retrieval Conference (TREC), Gaithersburg, USA, 13-15 November 2019.
 
-To see CROWN in action: Please have a look at our [Demo](http://crown.mpi-inf.mpg.de)
 
 Data
 ------
