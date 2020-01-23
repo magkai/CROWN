@@ -6,9 +6,6 @@ Description
 
 CROWN is an unsupervised approach for conversational passage ranking. Answers are retrieved from MS MARCO and TREC CAR datasets. We formulated the objective of maximizing the passage score for a query as a combination of similarity and coherence. Passages are preferred that contain words semantically similar to the words used in the question. Coherence is expressed using term proximity. We built a word-proximity network from the corpus, where words are nodes and there is an edge between two nodes if they co-occur in the same passage in a statistically significant way, within a context window. We use NPMI (normalized pointwise mutual information) as a measure of this word association significance.
 
-To cite CROWN: 
-    
-    Magdalena Kaiser, Rishiraj Saha Roy and Gerhard Weikum, 2019, "CROWN: Conversational Passage Ranking by Reasoning over Word Networks", In Proceedings of the 28th Text Retrieval Conference (TREC), Gaithersburg, USA, 13-15 November 2019.
 
 
 Data
