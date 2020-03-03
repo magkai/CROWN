@@ -1,0 +1,27 @@
+{
+  "short_name": "crown",
+  "name": "crown",
+  "icons": [
+   {
+      "src": "apple-icon-180x180.png",
+      "type": "image/png",
+      "sizes": "180x180"
+    },
+    {
+      "src": "apple-icon-152x152.png",
+      "type": "image/png",
+      "sizes": "152x152"
+    },  
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+    
+    	    
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "background_color": "#ffffff"
+}

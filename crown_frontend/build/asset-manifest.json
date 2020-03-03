@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "crown.mpi-inf.mpg.de/static/css/main.b01e7e11.chunk.css",
+    "main.js": "crown.mpi-inf.mpg.de/static/js/main.013bc021.chunk.js",
+    "main.js.map": "crown.mpi-inf.mpg.de/static/js/main.013bc021.chunk.js.map",
+    "runtime~main.js": "crown.mpi-inf.mpg.de/static/js/runtime~main.a8c0306b.js",
+    "runtime~main.js.map": "crown.mpi-inf.mpg.de/static/js/runtime~main.a8c0306b.js.map",
+    "static/js/2.30f40f30.chunk.js": "crown.mpi-inf.mpg.de/static/js/2.30f40f30.chunk.js",
+    "static/js/2.30f40f30.chunk.js.map": "crown.mpi-inf.mpg.de/static/js/2.30f40f30.chunk.js.map",
+    "index.html": "crown.mpi-inf.mpg.de/index.html",
+    "precache-manifest.266dee1f5bbc381e8323fbd7ded2e221.js": "crown.mpi-inf.mpg.de/precache-manifest.266dee1f5bbc381e8323fbd7ded2e221.js",
+    "service-worker.js": "crown.mpi-inf.mpg.de/service-worker.js",
+    "static/css/main.b01e7e11.chunk.css.map": "crown.mpi-inf.mpg.de/static/css/main.b01e7e11.chunk.css.map"
+  }
+}
