@@ -22,7 +22,7 @@ Data
 
 * MS MARCO and TREC CAR collections can be downloaded from here: https://github.com/daltonj/treccastweb#collection. Further tools for prepocessing, like removing duplicates can be found here: https://github.com/gla-ial/trec-cast-tools.
 
-* Further preprocessing of the MARCO and CAR files is required. You can use the file `collection_to_database.py` in order to create database entries in the form of key value pairs consisting of `passage id: passage content` for each passsage in the MARCO and the CAR collections.
+* Further preprocessing of the MARCO and CAR files is required. You can use the file `collection_to_database.py` in order to create database entries in the form of key value pairs consisting of *passage id: passage content* for each passsage in the MARCO and the CAR collections.
 
 * The Indri search engine is required. Information about where to download and how to create index files can be found here: https://sourceforge.net/p/lemur/wiki/Quick%20Start/. Index files need to be created for the MARCO and the CAR corpus. 
 
@@ -40,18 +40,18 @@ Data is exchanged between the two parts using a RESTful API.
 Parameters are provided in JSON format. They are defined in the following. 
 For more information about them and our method in general, please refer to our paper.
 
-####Parameters for CROWN####
+#### Parameters for CROWN ####
 
-Name  Values      Description
-----  ------------  ------------
-questions ["question 1", "question 2", ... ] List of all questions asked in current conversation
-retNbr  [1, 20]  Number of returned passages 
-indriRetNbr [10, 1000]  Number of passages retrieved by Indri
-nodeThreshold [0.0, 1.0] Similarity Threshold
-edgeThreshold [0.0, 0.1] Coherence Threshold
-convquery {'conv_uw', 'conv_w1', 'conv_w2'} Conversational Query Model
-h1    [0.0, 1.0]  Hyperparameter for indri score (h1, h2, h3, h4 must sum up to 1)
-h2    [0.0, 1.0]  Hyperparameter for node score (h1, h2, h3, h4 must sum up to 1)
-h3    [0.0, 1.0]  Hyperparameter for edge score (h1, h2, h3, h4 must sum up to 1)
-h4    [0.0, 1.0]  Hyperparameter for position score (h1, h2, h3, h4 must sum up to 1)
+|Name | Values   |   Description |
+| ---- | ------------ | ------------|
+|questions | ["question 1", "question 2", ... ] | List of all questions asked in current conversation |
+|retNbr | [1, 20] | Number of returned passages |
+|indriRetNbr |[10, 1000] | Number of passages retrieved by Indri|
+|nodeThreshold |[0.0, 1.0] | Similarity Threshold|
+|edgeThreshold |[0.0, 0.1] | Coherence Threshold|
+|convquery |{'conv_uw','conv_w1','conv_w2'} | Conversational Query Model|
+|h1    |[0.0, 1.0] | Hyperparameter for indri score (h1 - h4 must sum up to 1)|
+|h2   | [0.0, 1.0] | Hyperparameter for node score (h1 - h4 must sum up to 1)|
+|h3  |  [0.0, 1.0] | Hyperparameter for edge score (h1 - h4 must sum up to 1) |
+|h4 |   [0.0, 1.0] | Hyperparameter for position score (h1 - h4 must sum up to 1) |
 
