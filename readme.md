@@ -33,7 +33,7 @@ Data
 ### Running CROWN ####
 
 CROWN consists of two parts: 
-* a frontend written in Javascript using REACT JS (the code can be found in `treccast-app`)
+* a frontend written in Javascript using REACT JS (the code can be found in `crown_frontend`)
 * a backend written in Python. You can run it by starting the Python flask app: `python flask_demo.py`.
   
 Data is exchanged between the two parts using a RESTful API.
