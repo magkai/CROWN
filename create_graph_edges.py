@@ -40,9 +40,7 @@ nlp = English()
 prox3_dict = dict()
 word_freq = dict()
 
-G = nx.Graph()
 
-node_lock = threading.Lock()
 prox3_lock = threading.Lock()
 word_freq_lock = threading.Lock()
 
@@ -86,13 +84,6 @@ def processFiles(fname):
     finally:
         prox3_lock.release()
     
-    #add word as node in the graph
-    node_lock.acquire()
-    try:
-        for token in set(tokens):
-            G.add_node(token)
-    finally:
-        node_lock.release()
   
     #count how many times word appear in the corpus
     word_freq_lock.acquire()
@@ -109,13 +100,13 @@ def processFiles(fname):
 with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
     executor.map(processFiles, os.listdir(MARCO_DIR))
 
-#store frequency dictionary for proximity 3 for later usage
-with open('data/graph_data/prox_3.pickle', 'wb') as handle:
-    pickle.dump(prox3_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+#edge dictionary
+npmi_edges = dict()
 
 #number of passages in marco corpus
 nbr_docs = 8635155
-#add edges to graph (edges are the pmi values between two words)
+#add edges to graph (edges are the npmi values between two words)
 for key in prox3_dict.keys():
     t1 = key.split("_")[0]
     t2 = key.split("_")[1]
@@ -124,10 +115,13 @@ for key in prox3_dict.keys():
     t2_prob = word_freq[t2]/nbr_docs
     val = prox3_prob/ (t1_prob*t2_prob)
     pmi = math.log(val, 2)
-    G.add_edge(t1, t2, weight=pmi)
+    npmi = pmi/(- math.log(prox3_prob, 2))
+    npmi_edges[key] = npmi
 
-#store created graph   
-nx.write_gpickle(G, "data/graph_data/marco_graph_pmi3_edges.gpickle")
+
+#store graph edge dictionary 
+with open('data/graph_data/marco_graph_edges.pickle', 'wb') as handle: 
+	pickle.dump(npmi_edges, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
 print("Ended successfully")

@@ -17,49 +17,46 @@ import subprocess
 from subprocess import SubprocessError
 import logging
 import time
-
+import dbm
 
 
 nlp = English()
+nlp.add_pipe(nlp.create_pipe('sentencizer'))
 stemmer = PorterStemmer()
 
 #location of Indri index files
 CAR_INDEX_LOC ='data/indri_data/car_index/'
 MARCO_INDEX_LOC = 'data/indri_data/marco_index/'
 
-#locations of txt files for each MARCO/CAR id (to create these files from the MARCO/CAR collections use preprocess_collections.py)
-CAR_ID_LOC = 'data/car_ids'
-MARCO_ID_LOC = 'data/marco_ids'
 
-#location of Indri command line tool
+#Indri command line tool
 INDRI_LOC = 'indri-5.12/runquery'
+
+
 
 #the co-occurence window is set to 3 for our graph 
 COOC_WINDOW = 3
 
-#number of documents in MARCO TREC-CAsT corpus
-nbr_docs = 8635155
 
 
 class CROWN:
-    def __init__(self, word_vectors, G, prox_dict):
+    def __init__(self, word_vectors, prox_dict, marco_db, car_db):
         self.word_vectors = word_vectors
-        self.G = G
         self.prox_dict = prox_dict
         self.call_time = time.time()
         self.logger = logging.getLogger("crown_logger_" + str(self.call_time))
         self.crown_logger = logging.FileHandler("logging/Log-" + str(self.call_time) + ".log")
         self.crown_logger.setLevel(logging.DEBUG)
         self.logger.addHandler(self.crown_logger)
-        #logging.basicConfig(filename="logging/Log-" + str(self.call_time) + ".log",level=logging.DEBUG)
-    
+        self.marco_db = marco_db
+        self.car_db = car_db
+       
 
     #return tokenized query and the embedding of each token
     def getQueryEmbeddings(self, query):
         query_embeddings = dict()
         doc = nlp(query)
         tokens = [token.text.lower() for token in doc if token.text.isalpha() and not token.is_stop ]
-        #print(tokens)
         for token in tokens:
             try:
                 query_embeddings[token] = self.word_vectors[token]
@@ -68,22 +65,38 @@ class CROWN:
                 try:
                     query_embeddings[token] = self.word_vectors[s_token]
                 except KeyError:
-                    pass
-                    #print("Keyerror in query embedding for stemmed token: ", s_token)     
+                    pass  
         return (query_embeddings, tokens)
 
 
-    #get tokenized paragraph, embeddings for each token and the information in which paragraph certain token appears
+    #get embeddings for each token, the information in which paragraph certain token appears and the sentence-wise passage
     def getParagraphInfos(self, paragraph_map):
         token_embeddings = dict()
         token_to_ids = dict()
-        paragraph_to_tokens = dict()
+        sentence_info = dict()
+        passage_sentences = dict()
         
         for key in paragraph_map:
-            doc = nlp(''.join(paragraph_map[key]))
-            tokens = list([token.text.lower() for token in doc if token.text.isalpha() and  not token.is_stop])
-            paragraph_to_tokens[key] = tokens
-            for token in set(tokens):
+            sentence_map = dict()
+            p_tokens = []
+            #split passage into sentences
+            text_sentences = nlp( paragraph_map[key])
+            passage_sentences[key] = []
+            i = 1
+            for sentence in text_sentences.sents:
+                if sentence.text == []:                
+                    continue 
+                tokens = list([token.text.lower() for token in sentence if token.text.isalpha() and  not token.is_stop])
+                if tokens == []:
+                    continue
+                passage_sentences[key].append(sentence.text)
+                sentence_map[i] = tokens
+                i += 1
+                p_tokens.extend(tokens)
+        
+            sentence_info[key] = sentence_map
+            #get embeddings for each token
+            for token in set(p_tokens):
                 try:
                     token_embeddings[token] = self.word_vectors[token]
                 except KeyError:
@@ -97,7 +110,8 @@ class CROWN:
                 else:
                     token_to_ids[token] = [key]
        
-        return (token_embeddings, token_to_ids, paragraph_to_tokens)
+    
+        return (token_embeddings, token_to_ids, passage_sentences, sentence_info)
         
 
     #parse indri result file
@@ -115,25 +129,19 @@ class CROWN:
                     indri_line = fp.readline()
                     continue            
                 if "MARCO" in splits[2]:
-                    if os.path.exists(MARCO_ID_LOC + splits[2] + ".txt"):
-                        try:
-                            with open(MARCO_ID_LOC + splits[2] + ".txt", "r") as id_file:
-                                paragraph = id_file.read()
-                                id_file.close()
-                        except IOError:
-                            continue
-                    else:
+                    try:
+                        paragraph = self.marco_db[splits[2]].decode("utf-8")
+                    except KeyError:
                         self.logger.warn("no file with this id found, id was: %s", splits[2])
+                        continue
                 elif "CAR" in splits[2]:
-                    if os.path.exists(CAR_ID_LOC + splits[2] + ".txt"):
-                        try:
-                            with open(CAR_ID_LOC+ splits[2] + ".txt", "r") as id_file:
-                                paragraph = id_file.read()
-                                id_file.close()
-                        except IOError:
-                            continue
-                    else:
+                    try:
+                        paragraph = self.car_db[splits[2]].decode("utf-8")
+                    except KeyError:
                         self.logger.warn("no file with this id found, id was: %s", splits[2])
+                        continue
+                else:
+                    self.logger.warn("no file with this id found, id was: %s", splits[2])
                 if not paragraph=="":
                     indri_paragraphs[splits[2]] = paragraph
                     paragraph_score[splits[2]] = splits[3]
@@ -183,6 +191,7 @@ class CROWN:
         h1 = float(parameters["h1"])
         h2 = float(parameters["h2"])
         h3 = float(parameters["h3"])
+        h4 = float(parameters["h4"])
 
         self.logger.info("The following parameters have been received: ") 
         self.logger.info("conv_queries: %s", conv_queries)
@@ -250,7 +259,7 @@ class CROWN:
         #prepare indri paragraphs: get paragraph sentences and original indri scores from indri result file       
         indri_paragraphs, indri_paragraph_score = self.processIndriResult('data/indri_data/indri_results/result' + "_" + str(self.call_time) + "_turn" + str(turn_nbr+1) + '.txt')
         #get tokenized paragraphs, its token embeddings and info which token belongs to which paragraph
-        token_embeddings, token_to_ids, paragraph_to_tokens = self.getParagraphInfos(indri_paragraphs)
+        token_embeddings, token_to_ids, passage_sentences, sentence_info = self.getParagraphInfos(indri_paragraphs)
 
         #calculate our indriscore which is 1 / indri rank
         for id in indri_paragraph_score.keys():
@@ -260,6 +269,7 @@ class CROWN:
         self.logger.info("indri passages retrieved")
                 
         query_to_graph_token = dict()
+        token_node_weights = dict()
         #calculate node weights -> note: there are tokens which do not have an embedding: node weight=0
         for p_token in token_to_ids.keys():
             max_sim = 0.0
@@ -270,35 +280,35 @@ class CROWN:
                     if sim > max_sim:
                         max_sim = sim 
                         max_q_token = q_token
-            #add node if token not in graph 
-            if not p_token in self.G.nodes():
-                self.G.add_node(p_token)
+          
             # if similarity is above the node threshold then the node weight will be considered and the token will be further considered for the edge weight calculation
             if max_sim > NODE_MATCH_THRESHOLD:
                 #calculate node weight
                 if max_q_token in query_turn_weights.keys():
-                    self.G.nodes[p_token]['weight'] = max_sim * query_turn_weights[max_q_token]
+                    token_node_weights[p_token] = max_sim * query_turn_weights[max_q_token]
                 else:
-                    self.G.nodes[p_token]['weight'] = max_sim
+                    token_node_weights[p_token] = max_sim
                 #store maximal similar query token of a paragraph token for edge weight calculation
                 if not p_token in query_to_graph_token.keys():
                     query_to_graph_token[p_token] = [max_q_token]
                 else:
                     query_to_graph_token[p_token].append(max_q_token)
             else:
-                self.G.nodes[p_token]['weight'] = 0.0
+                token_node_weights[p_token] = 0.0
         
     
         #score paragraphs
         scored_paragraphs_dict = dict()
         node_score_dict = dict()
         edge_score_dict = dict()
+        pos_score_dict = dict()
+        most_rel_sentences = dict()
         #store info about highest matching nodes and edges
         node_map = dict()
         edge_map = dict()
         edge_weight_map = dict()
         
-
+     
         #go over each candidate paragraph
         for p_key in indri_paragraphs.keys():
             node_map[p_key] = []
@@ -306,90 +316,157 @@ class CROWN:
             p_score = 0.0
             node_score = 0.0
             edge_score = 0.0
-            edge_count = 0
-            node_count = 0 
-            #get all token of current paragraph
-            p_tokens = paragraph_to_tokens[p_key]
-            #calculate node score by summing over the node weights of the current paragraph tokens
-            for token in p_tokens:
-                if token in self.G.nodes():
-                    node_weight = self.G.nodes[token]['weight']
+            
+            #get all tokens of current paragraph sentence-wise
+            sentence_map = sentence_info[p_key]
+            sentence_node_score_dict = dict()
+            #calculate node score (sentence-wise and for whole paragraph)
+            for s_id in sentence_map.keys():
+                sentence_node_score = 0.0
+                for token in sentence_map[s_id]:
+                    node_weight = token_node_weights[token]
                     if node_weight > 0.0:
+                        sentence_node_score += node_weight
                         node_score += node_weight
-                        node_count += 1
-                        node_map[p_key].append(token)
-            if node_count != 0:
-                node_score = node_score/node_count
+                        if not token in node_map[p_key]:
+                           
+                            node_map[p_key].append(token)
+             
+                sentence_node_score_dict[s_id] = sentence_node_score
+          
             node_score_dict[p_key] = node_score
-                        
-            #calculate edge weights
-            for k in range(len(p_tokens)):
-                if not p_tokens[k] in self.G.nodes():
-                    continue
-                #check if token is close enough to a conversational query token (> NODE_MATCH_THRESHOLD)
-                if not p_tokens[k] in query_to_graph_token.keys():
-                    continue
-                if k >= (len(p_tokens) - COOC_WINDOW):
-                    upper_3 = len(p_tokens)
-                else:
-                    upper_3 = k+COOC_WINDOW+1      
-                # go over all tokens which are in proximity 3 to current token     
-                for j in range(k+1, upper_3):
-                    if not p_tokens[j] in self.G.nodes():
+
+            
+            sentence_rel_score_dict = dict()  
+            sentence_rank_dict = dict()
+            #calculate edge score and sentence relevance for position score
+            for s_id in sentence_map.keys():
+                sentence_edge_score = 0.0
+                s_tokens = sentence_map[s_id]
+                for k in range(len(s_tokens)):
+                    #check if token is close enough to a conversational query token (> NODE_MATCH_THRESHOLD)
+                    if not s_tokens[k] in query_to_graph_token.keys():
                         continue
-                    if p_tokens[j] == p_tokens[k]:
-                        continue
-                    if not p_tokens[j] in query_to_graph_token.keys():
-                        continue
-                    t1 = p_tokens[k]
-                    t2 = p_tokens[j]
-                    #check if there is an edge between the two
-                    if t1 in self.G.adj[t2]: 
-                        #check if the two token are not similar to the same query token
+                    if k >= (len(s_tokens) - COOC_WINDOW):
+                        upper_3 = len(s_tokens)
+                    else:
+                        upper_3 = k+COOC_WINDOW+1      
+                    # go over all tokens which are in proximity 3 to current token     
+                    for j in range(k+1, upper_3):
+                        if s_tokens[j] == s_tokens[k]:
+                            continue
+                        if not s_tokens[j] in query_to_graph_token.keys():
+                            continue
+                        t1 = s_tokens[k]
+                        t2 = s_tokens[j]            
+                        #check if both tokens are not most similar to the same query token
                         if not np.intersect1d(query_to_graph_token[t1], query_to_graph_token[t2]):
-                            #note that the current edge weight in the graph is the pmi value, here nmpi is calculated out of it
-                            edge_weight = self.G.get_edge_data(t1,t2)['weight']
-                            if t1 < t2:
-                                prox3_prob = self.prox_dict[str(t1) + "_" + str(t2)]/ nbr_docs
+                            edge_weight = -1.0
+                            #get edge weights
+                            if t1 < t2: 
+                                if str(t1) + "_" + str(t2) in self.prox_dict.keys():
+                                    edge_weight = self.prox_dict[str(t1) + "_" + str(t2)]
                             else:
-                                prox3_prob = self.prox_dict[str(t2) + "_" + str(t1)]/ nbr_docs
-                            edge_weight /= (- math.log(prox3_prob, 2))
-                            #consider edge weight if it is above the edge threshold
-                            if edge_weight > EDGE_THRESHOLD:
-                                edge_score += edge_weight
-                                edge_count += 1
-                                if t1 < t2:
-                                    pair = "(" + str(t1) + "," + str(t2) + ")"
-                                else:
-                                    pair = "(" + str(t2) + "," + str(t1) + ")"
-                                edge_map[p_key].append(pair)
-                                if not pair in edge_weight_map.keys():
-                                    edge_weight_map[pair] = edge_weight
-            #calculate the final edge score for the current paragraph
-            if edge_count != 0:
-                edge_score = edge_score/edge_count 
+                                if str(t2) + "_" + str(t1) in self.prox_dict.keys():
+                                    edge_weight = self.prox_dict[str(t2) + "_" + str(t1)]              
+                            if edge_weight != -1.0:
+                                if edge_weight > EDGE_THRESHOLD:
+                                    edge_score += edge_weight       
+                                    sentence_edge_score += edge_weight 
+                                    #store infos about most relevant edges
+                                    if t1 < t2:
+                                        pair = "(" + str(t1) + "," + str(t2) + ")"
+                                    else:
+                                        pair = "(" + str(t2) + "," + str(t1) + ")"
+                                    edge_map[p_key].append(pair)
+                                    if not pair in edge_weight_map.keys():
+                                        edge_weight_map[pair] = edge_weight
+                 
+                #store info about sentence relevance and calculate and sentence rank
+                sentence_rel_score_dict[s_id] = sentence_node_score_dict[s_id]  + sentence_edge_score
+                sentence_rank_dict[s_id] = sentence_rel_score_dict[s_id] * (1/s_id)
+            #store final edge score for the current paragraph    
             edge_score_dict[p_key] = edge_score
+            #calculate position score based on sentence ranks
+            if sentence_rank_dict:
+                pos_score_dict[p_key] = max(sentence_rank_dict.items(), key=operator.itemgetter(1))[1]
+            else:
+                pos_score_dict[p_key] = 0.0
+            
+            self.logger.info("node, edge and positions scores are calculated")
 
+            #store most relevant sentences for each paragraph
+            if sentence_rel_score_dict:
+                sorted_rel_sentences = sorted(sentence_rel_score_dict.items(), key=operator.itemgetter(1),  reverse=True)
+                most_rel_sentences[p_key] = [x[0] for x in sorted_rel_sentences]
+            else:
+                most_rel_sentences[p_key] = [1]
 
-        self.logger.info("node and edge scores are calculated")
-
-        #combine scores
+            if len(sentence_info[p_key]) <= 3:
+                del most_rel_sentences[p_key][1:]
+            elif len(sentence_info[p_key]) == 4:
+                del most_rel_sentences[p_key][2:]
+            else:
+                del most_rel_sentences[p_key][3:]
+           
+ 
         for p_key in indri_paragraphs.keys():
             if not p_key in indri_paragraph_score.keys():
                 indri_paragraph_score[p_key] = 0.0
         
+        #rescale scores: 1/rank (where rank is the rank for each individual score)
+        sorted_nodes = sorted(node_score_dict.items(), key=operator.itemgetter(1), reverse=True)
+        node_rank = 1
+        prev_node = -1
+        old_node_rank = -1
+        for entry in sorted_nodes:
+            if prev_node == format(node_score_dict[entry[0]], '.4f'):
+                node_score_dict[entry[0]] = 1/old_node_rank
+            else:
+                prev_node = format(node_score_dict[entry[0]], '.4f')
+                node_score_dict[entry[0]] = 1/node_rank             
+                old_node_rank = node_rank     
+            node_rank += 1
+
+        sorted_edges = sorted(edge_score_dict.items(), key=operator.itemgetter(1), reverse=True)
+        edge_rank = 1
+        prev_edge = -1
+        old_edge_rank = -1
+        for entry in sorted_edges:
+            if prev_edge == format(edge_score_dict[entry[0]],  '.4f'):
+                edge_score_dict[entry[0]] = 1/old_edge_rank
+            else:
+                prev_edge = format(edge_score_dict[entry[0]], '.4f')
+                edge_score_dict[entry[0]] = 1/edge_rank
+                old_edge_rank = edge_rank
+            edge_rank += 1
+
+        sorted_pos = sorted(pos_score_dict.items(), key=operator.itemgetter(1), reverse=True)
+        pos_rank = 1
+        prev_pos = -1
+        old_pos_rank = -1
+        for entry in sorted_pos:
+            if prev_pos == format(pos_score_dict[entry[0]], '.4f'):
+                pos_score_dict[entry[0]] = 1/old_pos_rank
+            else:
+                prev_pos = format(pos_score_dict[entry[0]], '.4f')
+                pos_score_dict[entry[0]] = 1/pos_rank       
+                old_pos_rank = pos_rank
+            pos_rank += 1
+
+        #combine scores
         for p_key in indri_paragraphs.keys():
-            p_score = h1 * indri_paragraph_score[p_key] + h2 * node_score_dict[p_key] + h3 * edge_score_dict[p_key]
+            p_score = h1 * indri_paragraph_score[p_key] + h2 * node_score_dict[p_key] + h3 * edge_score_dict[p_key] + h4 * pos_score_dict[p_key]
             scored_paragraphs_dict[p_key] = p_score
                
-        #sort paragraphs according to there scores
+        #sort paragraphs according to their scores
         sorted_p = sorted(scored_paragraphs_dict.items(), key=operator.itemgetter(1), reverse=True)
         scored_paragraphs = [x[0] for x in sorted_p]
 
         #sort node and edge token candidates
         for p_key in indri_paragraphs.keys():
             node_map[p_key] = list(set(node_map[p_key]))
-            node_map[p_key] = sorted(node_map[p_key], key=lambda x: self.G.nodes[x]['weight'], reverse=True)
+            node_map[p_key] = sorted(node_map[p_key], key=lambda x: token_node_weights[x], reverse=True)
             if len(node_map[p_key]) > 5:
                 del node_map[p_key][5:]
             edge_map[p_key] = list(set(edge_map[p_key]))
@@ -403,22 +480,23 @@ class CROWN:
         result_ids = []
         result_node_map = dict()
         result_edge_map = dict()
+        top_score_sentences = dict()
         for p in range(len(scored_paragraphs)):
             if p < res_nbr:
-                result_paragraphs.append(indri_paragraphs[scored_paragraphs[p]])
+                result_paragraphs.append(passage_sentences[scored_paragraphs[p]])
                 result_ids.append(scored_paragraphs[p])
                 self.logger.info("Top : %i", (p+1))
                 self.logger.info("Paragraph ID: %s, score: %s", scored_paragraphs[p], sorted_p[p][1])
-                self.logger.info("Paragraph: %s", indri_paragraphs[scored_paragraphs[p]])
+                self.logger.info("Paragraph: %s", passage_sentences[scored_paragraphs[p]])
             else:
                 break
 
         for res_id in result_ids:
             result_node_map[res_id] = node_map[res_id]
             result_edge_map[res_id] = edge_map[res_id]
+            top_score_sentences[res_id] = most_rel_sentences[res_id]
             
-        
-        return (result_paragraphs, result_ids, result_node_map, result_edge_map)
+        return (result_paragraphs, result_ids, result_node_map, result_edge_map, top_score_sentences)
                         
                     
                 
