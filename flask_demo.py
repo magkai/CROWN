@@ -3,7 +3,7 @@ import os
 import pickle
 import gensim
 import json
-from treccast_crown import CROWN
+from crown import CROWN
 import networkx as nx
 from flask_cors import CORS
 import logging

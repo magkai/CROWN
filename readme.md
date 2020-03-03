@@ -6,11 +6,7 @@ Description
 
 CROWN is an unsupervised approach for conversational passage ranking. Answers are retrieved from MS MARCO and TREC CAR datasets. We formulated the objective of maximizing the passage score for a query as a combination of similarity and coherence. Passages are preferred that contain words semantically similar to the words used in the question. Coherence is expressed using term proximity. We built a word-proximity network from the corpus, where words are nodes and there is an edge between two nodes if they co-occur in the same passage in a statistically significant way, within a context window. We use NPMI (normalized pointwise mutual information) as a measure of this word association significance.
 
-To cite CROWN: 
-    
-    Magdalena Kaiser, Rishiraj Saha Roy and Gerhard Weikum, 2019, "CROWN: Conversational Passage Ranking by Reasoning over Word Networks", In Proceedings of the 28th Text Retrieval Conference (TREC), Gaithersburg, USA, 15-17 November 2019.
 
-To see CROWN in action: Please have a look at our [Demo](http://crown.mpi-inf.mpg.de)
 
 Data
 ------
@@ -19,16 +15,16 @@ Data
 
 * We require several python libraries, like gensim, spaCy and NetworkX. Note that only Python 3 is supported.
 
-    pip install -r requirements.txt
+        pip install -r requirements.txt
 
 
-* Word2Vec embeddings pre-trained on the GoogleNews Corpus are used: https://code.google.com/archive/p/word2vec/. Please download and extract them and put them in the `data` folder.
+* Word2Vec embeddings pre-trained on the GoogleNews Corpus are used: https://code.google.com/archive/p/word2vec/. 
 
 * MS MARCO and TREC CAR collections can be downloaded from here: https://github.com/daltonj/treccastweb#collection. Further tools for prepocessing, like removing duplicates can be found here: https://github.com/gla-ial/trec-cast-tools.
 
 * Further preprocessing of the MARCO and CAR files is required. You can use the file `collection_to_database.py` in order to create database entries in the form of key value pairs consisting of `passage id: passage content` for each passsage in the MARCO and the CAR collections.
 
-* The Indri search engine is required. Information about where to download and how to create index files can be found here: https://sourceforge.net/p/lemur/wiki/Quick%20Start/. Index-files need to be created for the MARCO and the CAR corpus. The created index data need to be place in `marco_index` and  `car_index` in `data/indri_data`.
+* The Indri search engine is required. Information about where to download and how to create index files can be found here: https://sourceforge.net/p/lemur/wiki/Quick%20Start/. Index files need to be created for the MARCO and the CAR corpus. 
 
 * We created a graph from the MS Marco corpus, where each node is a word in the corpus (without stopwords) and the edges between the nodes are the npmi values between these words. These edges can be created using the file `create_graph_edges.py`.
 
