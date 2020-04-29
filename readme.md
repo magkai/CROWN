@@ -8,10 +8,9 @@ CROWN is an unsupervised approach for conversational passage ranking. Answers ar
 
 To cite CROWN: 
 
-"Conversational Question Answering over Passages by Leveraging Word Proximity Networks", Magdalena Kaiser, Rishiraj Saha Roy and Gerhard Weikum, in Proceedings of the 43rd International ACM SIGIR Conference on Research and Development in Information Retrieval 2020 ([SIGIR '20](https://sigir.org/sigir2020/)), Xi'an, China, July 25-30, 2020 (*to appear*).
+["Conversational Question Answering over Passages by Leveraging Word Proximity Networks"](https://arxiv.org/pdf/2004.13117.pdf), Magdalena Kaiser, Rishiraj Saha Roy and Gerhard Weikum, in Proceedings of the 43rd International ACM SIGIR Conference on Research and Development in Information Retrieval 2020 ([SIGIR '20](https://sigir.org/sigir2020/)), Xi'an, China, 25 - 30 July 2020 (*to appear*).
             
-To see CROWN in action: 
-        Please have a look at our [Demo](http://crown.mpi-inf.mpg.de)
+To see CROWN in action, please try out our [demo](http://crown.mpi-inf.mpg.de).
 
 Data
 ------
