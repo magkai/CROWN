@@ -11,7 +11,7 @@ cymem==2.0.2
 decorator==4.4.0
 docutils==0.14
 Flask==1.1.1
-Flask-Cors==3.0.8
+Flask-Cors==3.0.9
 gensim==3.8.0
 idna==2.8
 itsdangerous==1.1.0
