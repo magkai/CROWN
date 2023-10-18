@@ -43,6 +43,6 @@ thinc==7.0.8
 tqdm==4.32.2
 trec-car-tools==2.3
 typing==3.7.4
-urllib3==1.26.17
+urllib3==1.26.18
 wasabi==0.2.2
 Werkzeug==2.2.3
